@@ -6,6 +6,9 @@ export type HyperscanAddressTxItem = {
   value: string;         // native amount in wei
   timestamp: string;     // ISO string
   chain: string;         // "hyperliquid" or similar
+  status?: string;
+  result?: string | null;
+  has_error_in_internal_transactions?: boolean;
 
   from: { hash: string };
   to: { hash: string | null; name: string | null };

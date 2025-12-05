@@ -680,7 +680,7 @@ export function classifyHyperscanHistory(
       label: buildLabel(category),
       time: new Date(item.timestamp),
       scam: false, // Hyperscan has is_scam? if yes, map it.
-      gasUsd: null, // fill if Hyperscan provides gas price * price
+      gasUsd: undefined, // Hyperscan API doesn't expose USD gas yet
       tokensIn,
       tokensOut,
     };
