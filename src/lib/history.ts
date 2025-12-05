@@ -491,7 +491,7 @@ function toDecimal(raw: string | bigint, decimals: number): number {
       : raw.startsWith("0x")
       ? BigInt(raw)
       : BigInt(raw);
-  const factor = 10n ** BigInt(decimals);
+  const factor = BigInt(10) ** BigInt(decimals);
   const intPart = big / factor;
   const fracPart = big % factor;
   const fracStr = fracPart.toString().padStart(decimals, "0");
