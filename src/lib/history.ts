@@ -420,8 +420,6 @@ const FEE_ONLY_SELECTORS = new Set([
   SEL_REFUND,
 ]);
 
-import type { HyperscanAddressTxItem } from "./hyperscanTypes";
-
 function getSelectors(item: HyperscanAddressTxItem): string[] {
   const di = item.decoded_input;
   if (!di || !di.parameters?.length) return [];
