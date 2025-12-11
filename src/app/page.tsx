@@ -11,6 +11,13 @@ import type {
   HyperscanNextPageParams,
 } from "@/lib/hyperscanTypes";
 import { TxCard } from "@/components/TxCard";
+import { PerpsCard } from "@/components/PerpsCard";
+import type {
+  PerpsPosition,
+  HyperliquidAppListResponse,
+  HyperliquidPortfolioItem,
+  HyperliquidPerpsDetail,
+} from "@/lib/hyperliquidTypes";
 
 const PRJX_PROJECT_ID = "hyper_prjx";
 
@@ -18,6 +25,7 @@ export default function HomePage() {
   const [address, setAddress] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [positions, setPositions] = useState<ActiveLPPosition[]>([]);
+  const [perpsPositions, setPerpsPositions] = useState<PerpsPosition[]>([]);
   const [txs, setTxs] = useState<ClassifiedTx[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
@@ -34,6 +42,7 @@ export default function HomePage() {
     setLoading(true);
     setError(null);
     setTxs([]);
+    setPerpsPositions([]);
 
     try {
       const lpPromise = (async () => {
@@ -109,7 +118,48 @@ export default function HomePage() {
         }
       })();
 
-      await Promise.all([lpPromise, historyPromise, tokenPricesPromise]);
+      // Fetch Hyperliquid perps from complex_app_list
+      const perpsPromise = (async () => {
+        try {
+          const appRes = await fetch(
+            `https://api.rabby.io/v1/user/complex_app_list?id=${addr}`
+          );
+          if (!appRes.ok) {
+            console.warn("Rabby app list error", appRes.status, appRes.statusText);
+            return;
+          }
+          const appJson = (await appRes.json()) as HyperliquidAppListResponse;
+          const hyperliquidApp = appJson.apps?.find((app) => app.id === "hyperliquid");
+          if (!hyperliquidApp) return;
+
+          const perps: PerpsPosition[] = [];
+          for (const item of hyperliquidApp.portfolio_item_list) {
+            if (item.detail_types.includes("perpetuals")) {
+              const detail = item.detail as HyperliquidPerpsDetail;
+              perps.push({
+                id: item.position_index,
+                account: detail.description || "Unknown",
+                side: detail.side,
+                leverage: detail.leverage,
+                entryPrice: detail.entry_price,
+                markPrice: detail.mark_price,
+                liquidationPrice: detail.liquidation_price,
+                pnlUsd: detail.pnl_usd_value,
+                marginUsd: detail.margin_token?.amount ?? 0,
+                positionSize: detail.position_token?.amount ?? 0,
+                positionSymbol: detail.position_token?.symbol ?? "?",
+                positionLogoUrl: detail.position_token?.logo_url ?? null,
+                quoteSymbol: detail.quote_token?.symbol ?? "USDC",
+              });
+            }
+          }
+          setPerpsPositions(perps);
+        } catch (perpsErr) {
+          console.warn("Failed to fetch Hyperliquid perps", perpsErr);
+        }
+      })();
+
+      await Promise.all([lpPromise, historyPromise, tokenPricesPromise, perpsPromise]);
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? "Request failed");
@@ -120,10 +170,10 @@ export default function HomePage() {
     }
   };
 
-type LoadHistoryResult = {
-  nextParams: HyperscanNextPageParams | null;
-  hasMore: boolean;
-};
+  type LoadHistoryResult = {
+    nextParams: HyperscanNextPageParams | null;
+    hasMore: boolean;
+  };
 
   const buildHyperscanUrl = (
     addr: string,
@@ -292,6 +342,57 @@ type LoadHistoryResult = {
           </div>
         </section>
 
+        {/* Hyperliquid Perpetuals */}
+        {(perpsPositions.length > 0 || loading) && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-200">
+                Hyperliquid Perpetuals
+              </h2>
+              {perpsPositions.length > 0 && (
+                <span className="text-xs text-slate-400">
+                  {perpsPositions.length} position{perpsPositions.length === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+
+            {loading && perpsPositions.length === 0 && (
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
+                Fetching Hyperliquid perps…
+              </div>
+            )}
+
+            {/* Perps Summary */}
+            {perpsPositions.length > 0 && (
+              <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  Total Unrealized PnL
+                </p>
+                {(() => {
+                  const totalPnl = perpsPositions.reduce((sum, p) => sum + p.pnlUsd, 0);
+                  const totalMargin = perpsPositions.reduce((sum, p) => sum + p.marginUsd, 0);
+                  const isProfitable = totalPnl >= 0;
+                  return (
+                    <p className={`mt-1 text-lg font-bold ${isProfitable ? "text-emerald-300" : "text-red-400"}`}>
+                      {isProfitable ? "+" : ""}${totalPnl.toFixed(2)}
+                      <span className="ml-2 text-sm text-slate-400">
+                        on ${totalMargin.toFixed(2)} margin
+                      </span>
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {perpsPositions.map((pos) => (
+                <PerpsCard key={pos.id} pos={pos} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* PRJX transactions */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -366,7 +467,7 @@ type LoadHistoryResult = {
           </div>
         </section>
       </div>
-      
+
     </main>
   );
 }
