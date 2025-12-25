@@ -1,0 +1,14 @@
+services:
+  lp-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lp-dashboard
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      - NODE_ENV=production
+    # Uncomment below to add environment variables from a file
+    # env_file:
+    #   - .env

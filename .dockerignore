@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js build output
+.next
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Misc
+*.md
+*.zip
+*.txt
+*.log
+
+# Test files
+*.test.ts
+*.test.js
+classify_test.ts
+temp.js
+temp.ts
